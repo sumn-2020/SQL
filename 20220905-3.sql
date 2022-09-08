@@ -1,0 +1,33 @@
+동의어 객체
+
+사용예) HR계정의 EMPLOYEES테이블과 DEPARTMENTS테이블을 EMP 및 DEPT로 별칭을 부여하시오
+
+CREATE OR REPLACE SYNONYM  EMP FOR HR.EMPLOYEES;
+SELECT * FROM EMP;
+
+CREATE OR REPLACE SYNONYM  DEPT FOR HR.DEPARTMENTS;
+SELECT * FROM DEPT;
+
+SELECT EMPLOYEE_ID, EMP_NAME, DEPARTMENT_NAME
+  FROM EMP A, DEPT B
+ WHERE B.DEPARTMENT_ID IN(20,30,50,60)
+   AND A.DEPARTMENT_ID = B.DEPARTMENT_ID;
+   
+   
+----------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

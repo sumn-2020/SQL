@@ -1,0 +1,116 @@
+사용예) 오늘이 2020년 5월 17일이라고 가정하고 오늘 날짜를 입력받아 장바구니 번호를 생성하는 함수를 생성하시오.
+
+CREATE OR REPLACE FUNCTION FN_CREATE_CARTNO(P_DATE IN DATE)
+  RETURN CHAR
+  
+IS 
+  V_CARTNO CART.CART_NO%TYPE;
+  V_FLAG NUMBER:=0;
+  V_DAY CHAR(9):=TO_CHAR(P_DATE,'YYYYMMDD')||TRIM('%');
+  
+BEGIN
+  SELECT COUNT(*) INTO V_FLAG
+    FROM CART
+   WHERE CART_NO LIKE V_DAY;
+   
+   
+   IF V_FLAG=0 THEN
+      V_CARTNO:=TO_CHAR(P_DATE,'YYYYMMDD')||TRIM('00001');
+   ELSE
+      SELECT MAX(CART_NO)+1 INTO V_CARTNO
+        FROM CART 
+       WHERE CART_NO LIKE V_DAY;
+   END IF;
+   
+   RETURN V_CARTNO;
+END;
+
+(실행) 다음자료를 CART테이블에 저장하시오.
+    구매상품: 'j001'
+    구매상품: 'P201000012'
+    구매수량: 5
+    구매일자: 오늘
+    
+INSERT INTO CART (CART_MEMBER, CART_NO,CART_PROD, CART_QTY)
+   VALUES('j001', FN_CREATE_CARTNO(SYSDATE), 'P201000012', 5);
+
+-----------------------------------------------------------------------------------------
+
+사용예) 년도와 월과 상품번호를  입력 받아 해당 기간에 발생된 상품별 매입집계를 조회하시오
+       Alias는 상품번호, 상품명, 매입수량, 매입금액
+       
+--한꺼번에 두개를 반환해주는 함수는 없기 때문에 두개 (매입수량구하는 함수 , 매입금액을 구하는 함수)
+
+
+(수량집계함수)
+CREATE OR REPLACE FUNCTION FN_SUM_BUYQTY(
+   P_PERIOD IN CHAR,P_PID IN VARCHAR2)
+   RETURN NUMBER 
+IS 
+   V_SUM NUMBER:=0; --수량집계
+   V_SDATE DATE:= TO_DATE(P_PERIOD||'01');
+   V_EDATE DATE:= LAST_DAY(V_SDATE); --LAST_DAY: 월의 마지막 날짜 출력 
+BEGIN 
+   SELECT NVL(SUM(BUY_QTY),0) INTO V_SUM -- SUM(BUY_QTY)을 V_SUM에 넘겨주기
+     FROM  BUYPROD
+    WHERE BUY_DATE BETWEEN V_SDATE AND V_EDATE
+      AND BUY_PROD=P_PID; -- 상품코드와 같은 것을 지정해주면 하나의 상품만 검색 
+      
+   RETURN V_SUM;
+END;
+
+(실행)
+SELECT PROD_ID AS 상품코드,
+       PROD_NAME AS 상품명,
+       FN_SUM_BUYQTY('202002', PROD_ID) AS 매입수량
+  FROM PROD;
+
+
+(금액집계함수)
+CREATE OR REPLACE FUNCTION FN_COST(
+   P_PERIOD IN CHAR,P_PID IN VARCHAR2)
+   RETURN NUMBER 
+IS 
+   V_SUM NUMBER:=0;
+   V_SDATE DATE:= TO_DATE(P_PERIOD||'01');
+   V_EDATE DATE:= LAST_DAY(V_SDATE); 
+BEGIN 
+   SELECT NVL(SUM(BUY_QTY * BUY_COST),0) INTO V_SUM  
+     FROM  BUYPROD
+    WHERE BUY_DATE BETWEEN V_SDATE AND V_EDATE
+      AND BUY_PROD=P_PID; 
+      
+   RETURN V_SUM;
+END;
+
+(실행)
+SELECT PROD_ID AS 상품코드,
+       PROD_NAME AS 상품명,
+       FN_SUM_BUYQTY('202002', PROD_ID) AS 매입수량,
+       FN_COST('202002', PROD_ID) AS 매입금액합계
+ FROM PROD;
+
+
+(문자열로 합치기)
+CREATE OR REPLACE FUNCTION FN_SAMPLE(
+   P_PERIOD IN CHAR,P_PID IN VARCHAR2)
+   RETURN VARCHAR2 
+IS 
+   V_SUM2 VARCHAR2(100);
+   V_SDATE DATE:= TO_DATE(P_PERIOD||'01');
+   V_EDATE DATE:= LAST_DAY(V_SDATE); 
+BEGIN 
+   SELECT NVL(SUM(BUY_QTY * BUY_COST),0)||NVL(SUM(BUY_QTY),0) INTO V_SUM2  
+     FROM BUYPROD
+    WHERE BUY_DATE BETWEEN V_SDATE AND V_EDATE
+      AND BUY_PROD=P_PID; 
+      
+   RETURN V_SUM2;
+END;
+
+(실행)
+SELECT PROD_ID AS 상품코드,
+       PROD_NAME AS 상품명,
+       FN_SAMPLE('202002', PROD_ID) AS 수량매입금액합계
+ FROM PROD;
+
